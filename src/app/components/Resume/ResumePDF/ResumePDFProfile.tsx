@@ -1,4 +1,4 @@
-import { View } from "@react-pdf/renderer";
+import { View, Image } from "@react-pdf/renderer";
 import {
   ResumePDFIcon,
   type IconType,
@@ -11,6 +11,73 @@ import {
   ResumePDFStyledText,
 } from "components/Resume/ResumePDF/common";
 import type { ResumeProfile } from "lib/redux/types";
+import {
+  GITHUB_IMAGE_DATA_URL,
+  LINKEDIN_IMAGE_DATA_URL,
+  GITHUB_IMAGE_SRC,
+  LINKEDIN_IMAGE_SRC,
+} from "components/Resume/ResumePDF/common/brandIcons";
+import {
+  formatSocialUsername,
+  formatSocialUrl,
+} from "lib/format-social";
+
+const SocialButton = ({
+  type,
+  value,
+  isPDF,
+}: {
+  type: "github" | "linkedin";
+  value: string;
+  isPDF: boolean;
+}) => {
+  const username = formatSocialUsername(type, value);
+  const url = formatSocialUrl(type, value);
+  const isGithub = type === "github";
+  const iconSize = "10pt";
+  const bgColor = isGithub ? "#24292f" : "#0a66c2";
+
+  return (
+    <ResumePDFLink src={url} isPDF={isPDF}>
+      <View
+        style={{
+          ...styles.flexRow,
+          alignItems: "center",
+          gap: spacing["1"],
+          backgroundColor: bgColor,
+          borderRadius: "3pt",
+          paddingTop: "2pt",
+          paddingBottom: "2pt",
+          paddingLeft: "5pt",
+          paddingRight: "5pt",
+        }}
+      >
+        {isPDF ? (
+          // eslint-disable-next-line jsx-a11y/alt-text
+          <Image
+            src={isGithub ? GITHUB_IMAGE_DATA_URL : LINKEDIN_IMAGE_DATA_URL}
+            style={{ width: iconSize, height: iconSize }}
+          />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={isGithub ? GITHUB_IMAGE_DATA_URL : LINKEDIN_IMAGE_DATA_URL}
+            alt={isGithub ? "GitHub" : "LinkedIn"}
+            style={{
+              width: iconSize,
+              height: iconSize,
+              display: "inline-block",
+              verticalAlign: "middle",
+            }}
+          />
+        )}
+        <ResumePDFText style={{ fontSize: "8.5pt", color: "#ffffff" }}>
+          {username}
+        </ResumePDFText>
+      </View>
+    </ResumePDFLink>
+  );
+};
 
 export const ResumePDFProfile = ({
   profile,
@@ -21,18 +88,42 @@ export const ResumePDFProfile = ({
   themeColor: string;
   isPDF: boolean;
 }) => {
-  const { name, email, phone, url, summary, location } = profile;
+  const { name, email, phone, url, summary, location, github, linkedin } =
+    profile;
   const iconProps = { email, phone, location, url };
 
   return (
     <ResumePDFSection style={{ marginTop: spacing["4"] }}>
-      <ResumePDFText
-        bold={true}
-        themeColor={themeColor}
-        style={{ fontSize: "20pt" }}
+      <View
+        style={{
+          ...styles.flexRowBetween,
+          alignItems: "center",
+        }}
       >
-        {name}
-      </ResumePDFText>
+        <ResumePDFText
+          bold={true}
+          themeColor={themeColor}
+          style={{ fontSize: "20pt" }}
+        >
+          {name}
+        </ResumePDFText>
+        {(github || linkedin) && (
+          <View
+            style={{
+              ...styles.flexRow,
+              alignItems: "center",
+              gap: spacing["3"],
+            }}
+          >
+            {github && (
+              <SocialButton type="github" value={github} isPDF={isPDF} />
+            )}
+            {linkedin && (
+              <SocialButton type="linkedin" value={linkedin} isPDF={isPDF} />
+            )}
+          </View>
+        )}
+      </View>
       {summary && (
         <ResumePDFText>
           <ResumePDFStyledText text={summary} />
