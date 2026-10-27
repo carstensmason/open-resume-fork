@@ -142,7 +142,13 @@ export const Textarea = <T extends string>({
           selectedText.length - suffix.length
         );
       } else {
-        replacement = `${prefix}${selectedText}${suffix}`;
+        const leadingSpaces = selectedText.match(/^\s*/)?.[0] || "";
+        const trailingSpaces = selectedText.match(/\s*$/)?.[0] || "";
+        const coreText = selectedText.slice(
+          leadingSpaces.length,
+          selectedText.length - trailingSpaces.length
+        );
+        replacement = `${leadingSpaces}${prefix}${coreText || defaultPlaceholder}${suffix}${trailingSpaces}`;
       }
     } else {
       replacement = `${prefix}${defaultPlaceholder}${suffix}`;
@@ -150,7 +156,7 @@ export const Textarea = <T extends string>({
 
     textarea.setRangeText(replacement, start, end, "select");
     textarea.dispatchEvent(new Event("input", { bubbles: true }));
-    onChange(name, textarea.value);
+    onChange(name, textarea.value.replace(/[\u00A0\u200B\u200C\u200D\uFEFF]/g, " "));
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -259,7 +265,13 @@ const BulletListTextareaGeneral = <T extends string>({
           selectedText.length - suffix.length
         );
       } else {
-        replacement = `${prefix}${selectedText}${suffix}`;
+        const leadingSpaces = selectedText.match(/^\s*/)?.[0] || "";
+        const trailingSpaces = selectedText.match(/\s*$/)?.[0] || "";
+        const coreText = selectedText.slice(
+          leadingSpaces.length,
+          selectedText.length - trailingSpaces.length
+        );
+        replacement = `${leadingSpaces}${prefix}${coreText || defaultPlaceholder}${suffix}${trailingSpaces}`;
       }
     } else {
       replacement = `${prefix}${defaultPlaceholder}${suffix}`;
@@ -336,7 +348,8 @@ const dedupeLineBreak = (str: string) =>
 const getStringsByLineBreak = (str: string) => str.split(NORMALIZED_LINE_BREAK);
 
 const getBulletListStringsFromInnerText = (innerText: string) => {
-  const innerTextWithNormalizedLineBreak = normalizeLineBreak(innerText);
+  const cleanInnerText = innerText.replace(/[\u00A0\u200B\u200C\u200D\uFEFF]/g, " ");
+  const innerTextWithNormalizedLineBreak = normalizeLineBreak(cleanInnerText);
 
   // In Windows Chrome, pressing enter creates 2 line breaks "\n\n"
   // This dedupes it into 1 line break "\n"
@@ -419,8 +432,9 @@ const getBulletListStringsFromTextareaValue = (
   textareaValue: string,
   showBulletPoints: boolean
 ) => {
+  const cleanTextareaValue = textareaValue.replace(/[\u00A0\u200B\u200C\u200D\uFEFF]/g, " ");
   const textareaValueWithNormalizedLineBreak =
-    normalizeLineBreak(textareaValue);
+    normalizeLineBreak(cleanTextareaValue);
 
   const strings = getStringsByLineBreak(textareaValueWithNormalizedLineBreak);
 

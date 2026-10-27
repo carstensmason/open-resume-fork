@@ -26,6 +26,9 @@ export const parseStyledText = (
 ): StyledTextSpan[] => {
   if (!text) return [];
 
+  // Normalize non-breaking spaces (\u00A0) and invisible characters into standard ASCII spaces
+  const cleanText = text.replace(/[\u00A0\u200B\u200C\u200D\uFEFF]/g, " ");
+
   // Regex matching formatting tokens in order of specificity
   const pattern =
     /(\*\*\*(.+?)\*\*\*|___(.+?)___|\*\*(.+?)\*\*|<b>(.+?)<\/b>|<strong>(.+?)<\/strong>|__(.+?)__|<u>(.+?)<\/u>|\*([^\*]+?)\*|_([^_]+?)_|<i>(.+?)<\/i>|<em>(.+?)<\/em>|~~(.+?)~~|<s>(.+?)<\/s>|<del>(.+?)<\/del>)/g;
@@ -34,10 +37,10 @@ export const parseStyledText = (
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
-  while ((match = pattern.exec(text)) !== null) {
+  while ((match = pattern.exec(cleanText)) !== null) {
     if (match.index > lastIndex) {
       result.push({
-        text: text.slice(lastIndex, match.index),
+        text: cleanText.slice(lastIndex, match.index),
         ...parentStyle,
       });
     }
@@ -80,8 +83,8 @@ export const parseStyledText = (
     lastIndex = pattern.lastIndex;
   }
 
-  if (lastIndex < text.length) {
-    result.push({ text: text.slice(lastIndex), ...parentStyle });
+  if (lastIndex < cleanText.length) {
+    result.push({ text: cleanText.slice(lastIndex), ...parentStyle });
   }
 
   return result;

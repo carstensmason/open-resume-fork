@@ -87,7 +87,7 @@ export const ResumePDFStyledText = ({ text }: { text: string }) => {
     !spans[0].underline &&
     !spans[0].strikethrough
   ) {
-    return <>{text}</>;
+    return <>{spans[0].text}</>;
   }
 
   return (

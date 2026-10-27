@@ -53,4 +53,14 @@ describe("parseStyledText", () => {
   it("handles empty or falsy text", () => {
     expect(parseStyledText("")).toEqual([]);
   });
+
+  it("normalizes non-breaking spaces (\\u00A0) and invisible characters", () => {
+    expect(
+      parseStyledText("using the \u00A0**Flutter**\u00A0framework,")
+    ).toEqual([
+      { text: "using the  " },
+      { text: "Flutter", bold: true },
+      { text: " framework," },
+    ]);
+  });
 });
