@@ -3,6 +3,7 @@ import type { Style } from "@react-pdf/types";
 import { styles, spacing } from "components/Resume/ResumePDF/styles";
 import { DEBUG_RESUME_PDF_FLAG } from "lib/constants";
 import { DEFAULT_FONT_COLOR } from "lib/redux/settingsSlice";
+import { parseStyledText } from "lib/parse-styled-text";
 
 export const ResumePDFSection = ({
   themeColor,
@@ -76,6 +77,45 @@ export const ResumePDFText = ({
   );
 };
 
+export const ResumePDFStyledText = ({ text }: { text: string }) => {
+  const spans = parseStyledText(text);
+
+  if (
+    spans.length === 1 &&
+    !spans[0].bold &&
+    !spans[0].italic &&
+    !spans[0].underline &&
+    !spans[0].strikethrough
+  ) {
+    return <>{text}</>;
+  }
+
+  return (
+    <>
+      {spans.map((span, idx) => {
+        const textDecoration = span.underline
+          ? "underline"
+          : span.strikethrough
+          ? "line-through"
+          : undefined;
+
+        return (
+          <Text
+            key={idx}
+            style={{
+              fontWeight: span.bold ? "bold" : "normal",
+              fontStyle: span.italic ? "italic" : "normal",
+              ...(textDecoration ? { textDecoration } : {}),
+            }}
+          >
+            {span.text}
+          </Text>
+        );
+      })}
+    </>
+  );
+};
+
 export const ResumePDFBulletList = ({
   items,
   showBulletPoints = true,
@@ -104,7 +144,7 @@ export const ResumePDFBulletList = ({
           <ResumePDFText
             style={{ lineHeight: "1.3", flexGrow: 1, flexBasis: 0 }}
           >
-            {item}
+            <ResumePDFStyledText text={item} />
           </ResumePDFText>
         </View>
       ))}

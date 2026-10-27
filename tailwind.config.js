@@ -2,11 +2,7 @@
 module.exports = {
   content: ["./src/app/**/*.{ts,tsx,mdx}"],
   theme: {
-    extend: {
-      backgroundImage: {
-        dot: "url('/assets/dots.svg')",
-      },
-    },
+    extend: {},
   },
   corePlugins: {
     aspectRatio: false,

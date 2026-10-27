@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import ContentEditable from "react-contenteditable";
 import { useAutosizeTextareaHeight } from "lib/hooks/useAutosizeTextareaHeight";
 
@@ -14,22 +14,72 @@ interface InputProps<K extends string, V extends string | string[]> {
 }
 
 /**
- * InputGroupWrapper wraps a label element around a input children. This is preferable
- * than having input as a sibling since it makes clicking label auto focus input children
+ * Text formatting toolbar for bold, italic, and underline styling
+ */
+export const TextFormattingToolbar = ({
+  onBold,
+  onItalic,
+  onUnderline,
+}: {
+  onBold: () => void;
+  onItalic: () => void;
+  onUnderline: () => void;
+}) => (
+  <div className="flex items-center gap-1">
+    <button
+      type="button"
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={onBold}
+      title="Bold (Cmd+B / Ctrl+B or **text**)"
+      aria-label="Bold"
+      className="flex h-5 w-5 items-center justify-center rounded border border-gray-200 bg-white text-xs font-bold text-gray-700 shadow-xs hover:bg-gray-100 hover:text-gray-900 active:bg-gray-200"
+    >
+      B
+    </button>
+    <button
+      type="button"
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={onItalic}
+      title="Italic (Cmd+I / Ctrl+I or *text*)"
+      aria-label="Italic"
+      className="flex h-5 w-5 items-center justify-center rounded border border-gray-200 bg-white text-xs font-semibold italic text-gray-700 shadow-xs hover:bg-gray-100 hover:text-gray-900 active:bg-gray-200"
+    >
+      I
+    </button>
+    <button
+      type="button"
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={onUnderline}
+      title="Underline (Cmd+U / Ctrl+U or <u>text</u>)"
+      aria-label="Underline"
+      className="flex h-5 w-5 items-center justify-center rounded border border-gray-200 bg-white text-xs font-medium underline text-gray-700 shadow-xs hover:bg-gray-100 hover:text-gray-900 active:bg-gray-200"
+    >
+      U
+    </button>
+  </div>
+);
+
+/**
+ * InputGroupWrapper wraps a label or header with optional toolbar around input children.
  */
 export const InputGroupWrapper = ({
   label,
   className,
+  toolbar,
   children,
 }: {
   label: string;
   className?: string;
+  toolbar?: React.ReactNode;
   children?: React.ReactNode;
 }) => (
-  <label className={`text-base font-medium text-gray-700 ${className}`}>
-    {label}
+  <div className={`text-base font-medium text-gray-700 ${className}`}>
+    <div className="flex items-center justify-between gap-2">
+      <label>{label}</label>
+      {toolbar}
+    </div>
     {children}
-  </label>
+  </div>
 );
 
 export const INPUT_CLASS_NAME =
@@ -64,17 +114,82 @@ export const Textarea = <T extends string>({
   value = "",
   placeholder,
   onChange,
-}: InputProps<T, string>) => {
+  hasToolbar = true,
+}: InputProps<T, string> & { hasToolbar?: boolean }) => {
   const textareaRef = useAutosizeTextareaHeight({ value });
 
+  const applyFormat = (
+    prefix: string,
+    suffix: string = prefix,
+    defaultPlaceholder: string = "text"
+  ) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = textarea.value.substring(start, end);
+
+    let replacement = "";
+    if (selectedText) {
+      if (
+        selectedText.startsWith(prefix) &&
+        selectedText.endsWith(suffix) &&
+        selectedText.length >= prefix.length + suffix.length
+      ) {
+        replacement = selectedText.slice(
+          prefix.length,
+          selectedText.length - suffix.length
+        );
+      } else {
+        replacement = `${prefix}${selectedText}${suffix}`;
+      }
+    } else {
+      replacement = `${prefix}${defaultPlaceholder}${suffix}`;
+    }
+
+    textarea.setRangeText(replacement, start, end, "select");
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    onChange(name, textarea.value);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.metaKey || e.ctrlKey) {
+      const key = e.key.toLowerCase();
+      if (key === "b") {
+        e.preventDefault();
+        applyFormat("**", "**", "bold");
+      } else if (key === "i") {
+        e.preventDefault();
+        applyFormat("*", "*", "italic");
+      } else if (key === "u") {
+        e.preventDefault();
+        applyFormat("<u>", "</u>", "underline");
+      }
+    }
+  };
+
+  const toolbar = hasToolbar ? (
+    <TextFormattingToolbar
+      onBold={() => applyFormat("**", "**", "bold")}
+      onItalic={() => applyFormat("*", "*", "italic")}
+      onUnderline={() => applyFormat("<u>", "</u>", "underline")}
+    />
+  ) : undefined;
+
   return (
-    <InputGroupWrapper label={label} className={wrapperClassName}>
+    <InputGroupWrapper
+      label={label}
+      className={wrapperClassName}
+      toolbar={toolbar}
+    >
       <textarea
         ref={textareaRef}
         name={name}
         className={`${INPUT_CLASS_NAME} resize-none overflow-hidden`}
         placeholder={placeholder}
         value={value}
+        onKeyDown={handleKeyDown}
         onChange={(e) => onChange(name, e.target.value)}
       />
     </InputGroupWrapper>
@@ -104,13 +219,7 @@ export const BulletListTextarea = <T extends string>(
 
 /**
  * BulletListTextareaGeneral is a textarea where each new line starts with a bullet point.
- *
- * In its core, it uses a div with contentEditable set to True. However, when
- * contentEditable is True, user can paste in any arbitrary html and it would
- * render. So to make it behaves like a textarea, it strips down all html while
- * keeping only the text part.
- *
- * Reference: https://stackoverflow.com/a/74998090/7699841
+ * Supports bold (**text**), italic (*text*), and underline (<u>text</u>) with a toolbar and shortcuts.
  */
 const BulletListTextareaGeneral = <T extends string>({
   label,
@@ -121,16 +230,84 @@ const BulletListTextareaGeneral = <T extends string>({
   onChange,
   showBulletPoints = true,
 }: InputProps<T, string[]> & { showBulletPoints?: boolean }) => {
+  const contentEditableRef = useRef<HTMLDivElement | null>(null);
+
+  const applyFormat = (
+    prefix: string,
+    suffix: string = prefix,
+    defaultPlaceholder: string = "text"
+  ) => {
+    const selection = window.getSelection();
+    const container = contentEditableRef.current;
+    if (!selection || !container) return;
+
+    if (!container.contains(selection.anchorNode)) {
+      container.focus();
+    }
+
+    const selectedText = selection.toString();
+    let replacement = "";
+
+    if (selectedText) {
+      if (
+        selectedText.startsWith(prefix) &&
+        selectedText.endsWith(suffix) &&
+        selectedText.length >= prefix.length + suffix.length
+      ) {
+        replacement = selectedText.slice(
+          prefix.length,
+          selectedText.length - suffix.length
+        );
+      } else {
+        replacement = `${prefix}${selectedText}${suffix}`;
+      }
+    } else {
+      replacement = `${prefix}${defaultPlaceholder}${suffix}`;
+    }
+
+    document.execCommand("insertText", false, replacement);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.metaKey || e.ctrlKey) {
+      const key = e.key.toLowerCase();
+      if (key === "b") {
+        e.preventDefault();
+        applyFormat("**", "**", "bold");
+      } else if (key === "i") {
+        e.preventDefault();
+        applyFormat("*", "*", "italic");
+      } else if (key === "u") {
+        e.preventDefault();
+        applyFormat("<u>", "</u>", "underline");
+      }
+    }
+  };
+
   const html = getHTMLFromBulletListStrings(bulletListStrings);
+
+  const toolbar = (
+    <TextFormattingToolbar
+      onBold={() => applyFormat("**", "**", "bold")}
+      onItalic={() => applyFormat("*", "*", "italic")}
+      onUnderline={() => applyFormat("<u>", "</u>", "underline")}
+    />
+  );
+
   return (
-    <InputGroupWrapper label={label} className={wrapperClassName}>
+    <InputGroupWrapper
+      label={label}
+      className={wrapperClassName}
+      toolbar={toolbar}
+    >
       <ContentEditable
+        innerRef={contentEditableRef as any}
         contentEditable={true}
         className={`${INPUT_CLASS_NAME} cursor-text [&>div]:list-item ${
           showBulletPoints ? "pl-7" : "[&>div]:list-['']"
         }`}
-        // Note: placeholder currently doesn't work
         placeholder={placeholder}
+        onKeyDown={handleKeyDown}
         onChange={(e) => {
           if (e.type === "input") {
             const { innerText } = e.currentTarget as HTMLDivElement;
